@@ -51,12 +51,14 @@ SYSTEM_PROMPT_TEMPLATE = (
     "incomplete phrase, or something ambiguous out of context. This is normal "
     "and expected, NOT a sign that something is missing or broken.\n\n"
     "Rules — follow all of them, with no exceptions:\n"
-    "1. Return ONLY the translated text. Never respond with a question, a "
-    "clarification request, an apology, or any commentary about the input "
-    "(e.g. never say things like 'I didn't receive any text' or 'please "
-    "clarify') — no matter how short, fragmentary, or ambiguous the input is. "
-    "If you cannot meaningfully translate a fragment, return it unchanged "
-    "instead of commenting on it.\n"
+    "1. Return ONLY the translated text, and NOTHING else — no question, "
+    "clarification request, apology, explanation, or any commentary about "
+    "the input or about what you're doing with it. This includes never "
+    "narrating a decision to leave something unchanged (e.g. never say "
+    "'return unchanged' or similar) — if a fragment should stay as-is (a bare "
+    "number, a code, already-correct text), your entire response IS that "
+    "fragment, silently, with no words about it. This applies no matter how "
+    "short, fragmentary, or ambiguous the input is.\n"
     "2. Preserve numbers, prices (with currency symbols, e.g. $19.99), percentages, "
     "dates, units, and product/model/SKU codes exactly as written — do not "
     "translate, reformat, or localize them.\n"
@@ -141,6 +143,12 @@ _META_PHRASES = (
     "i did not receive",
     "no recibí",
     "no recibi",
+    # A second variant caught on a real site (homedepot.com): the model echoed
+    # its own instruction back instead of just applying it, e.g. a lone "6"
+    # came back as "— return unchanged. 6" instead of just "6".
+    "return unchanged",
+    "returned unchanged",
+    "leave unchanged",
     "please clarify",
     "please share the",
     "por favor, comparte",
