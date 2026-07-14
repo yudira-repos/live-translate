@@ -1,0 +1,57 @@
+{
+  "assignment": "Assignment 1 — Live Translate",
+  "student": "Ravi Kiran",
+  "video": "<your video link, or leave blank for now>",
+  "target": "http://localhost:8787",
+  "auto_score": 70,
+  "auto_max": 70,
+  "manual_max": 30,
+  "scores": {
+    "widget_lights_up": 15,
+    "caching_correctness": 20,
+    "performance_sla": 15,
+    "logging_observability": 10,
+    "service_separation_contract": 10,
+    "llm_prompt_quality": null,
+    "deploy_docs": null
+  },
+  "notes": {
+    "widget_lights_up": "translate + batch return valid shapes",
+    "caching_correctness": "2nd cached=True, faster=True, sqlite_persisted=True",
+    "performance_sla": "bench SLA gate PASS",
+    "logging_observability": "stats_hit_rate=True, health_reports_ai=True, ai_log_file=True, trace_correlated=True",
+    "service_separation_contract": "400_on_bad_input=True, gateway_nests_ai_health=True"
+  },
+  "evidence": {
+    "sample_translation": "¡Buenos días, bienvenido!",
+    "cache_first_ms": 1719,
+    "cache_second_ms": 0,
+    "bench_tail": "    cost per MISS (avg)         $0.000165\n    @ 500,000/mo, no cache      $82.68\n    @ 500,000/mo, cached        $17.57\n    monthly savings from cache  $65.11\n── SLA GATE ────────────────────────────────────────\n    PASS  cache_hit_p95_ms         21.3 <= 60\n    PASS  cache_miss_p95_ms        2080.1 <= 3500\n    PASS  min_cache_hit_rate_pct   78.8 >= 60\n    PASS  max_error_rate_pct       0.0 <= 1.0\n    PASS  min_throughput_rps       771.2 >= 20\n\n✅ ALL SLAs MET\n\nWrote /Users/ravi.nukala/code/multi-agent-course/FDE/Assignment_1_Live_Translate/eval/_bench.json",
+    "bench_metrics": {
+      "target": "http://localhost:8787",
+      "rounds": 4,
+      "concurrency": 8,
+      "latency": {
+        "miss_p50": 1377.280625,
+        "miss_p95": 2080.1033994,
+        "hit_p50": 8.326417000000141,
+        "hit_p95": 21.259096100000207
+      },
+      "hit_rate_pct": 78.75,
+      "error_rate_pct": 0.0,
+      "throughput_rps": 771.1623826989745,
+      "cost": {
+        "per_miss_usd": 0.0001653529411764706,
+        "monthly_no_cache_usd": 82.67647058823529,
+        "monthly_cached_usd": 17.56875,
+        "monthly_savings_usd": 65.10772058823528
+      },
+      "sla_pass": true
+    },
+    "trace_correlated": true,
+    "hygiene_flags": [],
+    "provided_files_changed": "",
+    "deploy_url": "https://rnukala-livetranslate-gw.fly.dev",
+    "deploy_health_ok": true
+  }
+}

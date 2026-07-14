@@ -1,0 +1,21 @@
+{
+  "target": "https://rnukala-livetranslate-gw.fly.dev",
+  "rounds": 4,
+  "concurrency": 8,
+  "latency": {
+    "miss_p50": 1551.6967085,
+    "miss_p95": 2143.53647355,
+    "hit_p50": 175.51414550000112,
+    "hit_p95": 237.04341069999995
+  },
+  "hit_rate_pct": 75.0,
+  "error_rate_pct": 0.0,
+  "throughput_rps": 37.90117206216169,
+  "cost": {
+    "per_miss_usd": 0.0001602,
+    "monthly_no_cache_usd": 80.1,
+    "monthly_cached_usd": 20.025,
+    "monthly_savings_usd": 60.074999999999996
+  },
+  "sla_pass": false
+}

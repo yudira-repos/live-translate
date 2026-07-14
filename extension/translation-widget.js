@@ -174,6 +174,17 @@
   window.addEventListener("FDE_RESTORE_PAGE", restorePage);
   window.addEventListener("FDE_OPEN", () => setPanel(true));
 
+  // LOCAL PATCH: content.js fetches the saved backend URL from chrome.storage
+  // asynchronously, but CONFIG above is built synchronously at parse time, so
+  // this file almost always freezes on the localhost default before that read
+  // completes. Pick up the corrected URL once content.js signals it's ready.
+  window.addEventListener("FDE_CONFIG_READY", (e) => {
+    if (e.detail && e.detail.apiUrl) {
+      CONFIG.API_URL = e.detail.apiUrl;
+      if (statusEl) statusEl.textContent = `Backend: ${CONFIG.API_URL}`;
+    }
+  });
+
   // ---- actions ------------------------------------------------------------
   function togglePanel() {
     setPanel(!panelOpen);

@@ -46,17 +46,33 @@ SYSTEM_PROMPT_TEMPLATE = (
     "specifically: use Latin American vocabulary and grammar (e.g. 'carrito' not "
     "'cesta', 'computadora' not 'ordenador', 'ustedes' not 'vosotros'), never "
     "Castilian/European Spanish forms.\n\n"
-    "Rules — follow all of them:\n"
-    "1. Return ONLY the translated text. No preamble, no explanation, no notes, "
-    "no wrapping quotes or markdown.\n"
+    "The input is one small fragment of text pulled automatically from a live "
+    "web page — it will often be a lone number, a UI label, a single word, an "
+    "incomplete phrase, or something ambiguous out of context. This is normal "
+    "and expected, NOT a sign that something is missing or broken.\n\n"
+    "Rules — follow all of them, with no exceptions:\n"
+    "1. Return ONLY the translated text. Never respond with a question, a "
+    "clarification request, an apology, or any commentary about the input "
+    "(e.g. never say things like 'I didn't receive any text' or 'please "
+    "clarify') — no matter how short, fragmentary, or ambiguous the input is. "
+    "If you cannot meaningfully translate a fragment, return it unchanged "
+    "instead of commenting on it.\n"
     "2. Preserve numbers, prices (with currency symbols, e.g. $19.99), percentages, "
     "dates, units, and product/model/SKU codes exactly as written — do not "
     "translate, reformat, or localize them.\n"
     "3. Preserve HTML tags, entities, or template placeholders (e.g. {{name}}) "
     "unchanged if present.\n"
-    "4. If the input is a proper noun, brand name, or already in the target "
-    "language, return it unchanged.\n"
+    "4. If the input is a proper noun, brand name, a bare number, or already in "
+    "the target language, return it unchanged.\n"
 )
+
+# Rough guard against the failure mode above actually slipping through anyway:
+# a real translation of a short web-page fragment should not balloon into a
+# multi-sentence essay. If it does, treat it as a bad response rather than
+# silently shipping it — this mirrors the assignment's own "never serve wrong
+# output as if it succeeded" rule, just applied to content, not just errors.
+_MAX_EXPANSION_RATIO = 8
+_MIN_LEN_FOR_RATIO_CHECK = 20  # skip the ratio check for very short inputs
 
 # Targets we actually have a register-accurate prompt for. Anything else
 # gets a 501 from the AI service rather than a best-guess translation with
@@ -107,4 +123,41 @@ async def translate_text(text: str, target: str = "es-MX", model: str = MODEL_DE
     text_block = next((b for b in msg.content if getattr(b, "type", None) == "text"), None)
     if text_block is None:
         raise RuntimeError(f"LLM response had no text block (got: {[getattr(b, 'type', b) for b in msg.content]})")
-    return _clean(text_block.text)
+    cleaned = _clean(text_block.text)
+
+    # Observed in production on a real site: for tiny/ambiguous fragments, the
+    # model sometimes ignores rule 1 and returns a clarification/meta response
+    # instead of a translation (e.g. "I didn't receive any text to translate").
+    # That's not a provider error, so it wouldn't otherwise raise — check for
+    # it explicitly and fail loud rather than shipping it onto the page.
+    if _looks_like_meta_response(cleaned, text):
+        raise RuntimeError(f"LLM returned a non-translation response instead of translating: {cleaned!r}")
+
+    return cleaned
+
+
+_META_PHRASES = (
+    "i didn't receive",
+    "i did not receive",
+    "no recibí",
+    "no recibi",
+    "please clarify",
+    "please share the",
+    "por favor, comparte",
+    "por favor comparte",
+    "there's no text",
+    "there is no text",
+    "no hay texto",
+    "no actual content",
+    "as an ai",
+    "i should ask",
+)
+
+
+def _looks_like_meta_response(cleaned: str, original: str) -> bool:
+    lowered = cleaned.lower()
+    if any(phrase in lowered for phrase in _META_PHRASES):
+        return True
+    if len(original) >= _MIN_LEN_FOR_RATIO_CHECK and len(cleaned) > _MAX_EXPANSION_RATIO * len(original):
+        return True
+    return False
