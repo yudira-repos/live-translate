@@ -1,0 +1,22 @@
+# fly.toml app configuration file generated for ai-service-python-rosy-ridge-188 on 2026-07-14T12:13:31-07:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'ai-service-python-rosy-ridge-188'
+primary_region = 'lax'
+
+[build]
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 1024

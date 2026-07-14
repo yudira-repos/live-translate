@@ -1,0 +1,6 @@
+node_modules/
+.env
+*.log
+# vendored copy created by predeploy.sh for the Fly.io build context —
+# the source of truth is the top-level widget/ folder, not this copy.
+widget/
