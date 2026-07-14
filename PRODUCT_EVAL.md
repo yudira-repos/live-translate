@@ -2,7 +2,7 @@
 
 - **Student:** Ravi Kiran
 - **Date:** 2026-07-14
-- **Video demo:** [homedepot-plugin.mov](https://github.com/yudira-repos/live-translate/blob/main/videos/homedepot-plugin.mov) (20s — live site, real network requests to the deployed gateway visible in DevTools, ends on a 236/236 cache-hit pass) and [local-testing.mov](https://github.com/yudira-repos/live-translate/blob/main/videos/local-testing.mov) (74s — full translate → restore → translate-again cycle on the demo page, ending on the cache-hit badge)
+- **Video demo:** [homedepot-plugin.mov](https://www.youtube.com/playlist?list=PLcaqZhfzz1kA) (20s — live site, real network requests to the deployed gateway visible in DevTools, ends on a 236/236 cache-hit pass) and [local-testing.mov](https://www.youtube.com/playlist?list=PLcaqZhfzz1kA) (74s — full translate → restore → translate-again cycle on the demo page, ending on the cache-hit badge)
 - **LLM provider / model:** Anthropic Claude (`claude-sonnet-5`, configurable via `MODEL` in `.env`)
 - **Backend target:** `https://rnukala-livetranslate-gw.fly.dev` (deployed; auto-graded checks below ran against `localhost:8787` per `eval/eval.py`'s design, with deploy health separately confirmed at the URL above)
 
