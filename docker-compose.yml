@@ -1,0 +1,42 @@
+# FDE Assignment 1 — one-command local run of both services (bonus/stretch goal).
+#
+# Before first use, vendor the widget into the gateway's build context (same
+# step needed for Fly.io — see backend/gateway-node/predeploy.sh):
+#   ./backend/gateway-node/predeploy.sh
+#
+# Then:
+#   cp backend/ai-service-python/.env.example backend/ai-service-python/.env   # add your API key
+#   cp backend/gateway-node/.env.example backend/gateway-node/.env
+#   docker compose up --build
+#
+# Gateway:    http://localhost:8787
+# AI service: http://localhost:8000
+services:
+  ai-service:
+    build: ./backend/ai-service-python
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/ai-service-python/.env
+    volumes:
+      # Persist the SQLite cache across `docker compose down`/`up` — without
+      # this the container's filesystem (and translations.db with it) is
+      # wiped on removal.
+      - ai_service_data:/app/data
+    environment:
+      - TRANSLATION_DB_PATH=/app/data/translations.db
+
+  gateway:
+    build: ./backend/gateway-node
+    ports:
+      - "8787:8787"
+    env_file:
+      - ./backend/gateway-node/.env
+    environment:
+      # Service name on the compose network, not localhost.
+      - AI_SERVICE_URL=http://ai-service:8000
+    depends_on:
+      - ai-service
+
+volumes:
+  ai_service_data:

@@ -408,12 +408,12 @@ Read your `eval/REPORT.md` the same way: fix any **Fail/Partial** rows before yo
 
 ## Stretch goals (bonus)
 
-- **Dockerize** both services + a `docker-compose.yml` so `docker compose up` runs everything.
-- **Harden the deploy** — multi-region on Fly.io, autoscale (`fly autoscale`), a health-check-driven restart policy, and a GitHub Action that runs `bench.py` and `fly deploy` on green.
-- **Rate limiting** on the gateway (per-IP) with a `429` + friendly widget message.
-- **Streaming** long translations token-by-token into the widget.
-- **Cache TTL / invalidation** and a `POST /clear-cache` endpoint.
-- **Language picker** in the widget/popup (es-MX, es-ES, pt-BR…) threaded through the contract.
+- ✅ **Dockerize** both services + a `docker-compose.yml` so `docker compose up --build` runs everything (run `backend/gateway-node/predeploy.sh` once first — see the file for why). Not build-tested against a live Docker daemon in this environment; please confirm it builds cleanly on your machine.
+- ✅ **Harden the deploy, partially** — a GitHub Action (`.github/workflows/ci.yml`) runs `bench.py` against a docker-compose stack on every push/PR to `main`, then deploys both services to Fly.io on a green `main` build. Needs `ANTHROPIC_API_KEY` and `FLY_API_TOKEN` repo secrets to actually run (skips gracefully with a warning if either is missing). Multi-region/autoscale/health-check-driven restarts are not implemented.
+- ✅ **Rate limiting** on the gateway (per-IP, `backend/gateway-node/server.js`) returns `429` with a `Retry-After` header once a client exceeds `RATE_LIMIT_MAX` requests per `RATE_LIMIT_WINDOW_MS` (defaults: 300 / 10s — generous enough not to trip `bench.py`'s own workload). The friendly widget message isn't wired up since that would mean editing the provided widget.
+- ✅ **Cache TTL / invalidation** — `CACHE_TTL_SECONDS` in `backend/ai-service-python/.env` (default `0` = never expire, preserving the required behavior) and a `POST /clear-cache` endpoint that wipes both tiers and resets `/stats`.
+- ⬜ **Streaming** long translations token-by-token into the widget — not implemented (would require changing the widget's fetch-based rendering, which is off-limits).
+- ⬜ **Language picker** in the widget/popup — not implemented in the UI (off-limits to edit), but the backend already supports it: `SUPPORTED_TARGETS` in `lib/llm.py` covers `es-MX`, `es-ES`, `es`, `pt-BR`, `fr` with register-accurate prompts, and rejects anything else with `501` rather than guessing. Wiring a picker into the popup would just mean sending a different `target` value — the contract is already there.
 
 ---
 

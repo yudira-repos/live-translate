@@ -23,17 +23,20 @@ from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 from lib.cache import TwoTierCache
-from lib.llm import translate_text
+from lib.llm import SUPPORTED_TARGETS, translate_text
 from lib.logger import get_logger
 
 load_dotenv()
 
-MODEL = os.getenv("MODEL", "claude-sonnet-4-6")
+MODEL = os.getenv("MODEL", "claude-sonnet-5")
 DB_PATH = os.getenv("TRANSLATION_DB_PATH", "translations.db")
+# Bonus/optional: 0 (default) = no expiry, which is the assignment's required
+# behavior. Set CACHE_TTL_SECONDS to opt into expiring cache entries.
+CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "0"))
 
 app = FastAPI(title="FDE Live Translate — AI Service")
 log = get_logger("ai-service")
-cache = TwoTierCache(DB_PATH)
+cache = TwoTierCache(DB_PATH, ttl_seconds=CACHE_TTL_SECONDS)
 
 # request/response shapes ----------------------------------------------------
 class TranslateIn(BaseModel):
@@ -81,6 +84,11 @@ async def translate_one(text: str, target: str) -> dict:
 
 @app.post("/translate")
 async def translate(body: TranslateIn, x_request_id: Optional[str] = Header(default=None, alias="X-Request-Id")):
+    if body.target not in SUPPORTED_TARGETS:
+        raise HTTPException(
+            status_code=501,
+            detail=f"target '{body.target}' is not implemented (supported: {sorted(SUPPORTED_TARGETS)})",
+        )
     try:
         result = await translate_one(body.text, body.target)
     except Exception as e:  # noqa: BLE001 — fail loud: log + surface as 502, never fake success
@@ -104,6 +112,11 @@ async def translate(body: TranslateIn, x_request_id: Optional[str] = Header(defa
 
 @app.post("/translate/batch")
 async def translate_batch(body: BatchIn, x_request_id: Optional[str] = Header(default=None, alias="X-Request-Id")):
+    if body.target not in SUPPORTED_TARGETS:
+        raise HTTPException(
+            status_code=501,
+            detail=f"target '{body.target}' is not implemented (supported: {sorted(SUPPORTED_TARGETS)})",
+        )
     t0 = time.perf_counter()
     try:
         results = [await translate_one(t, body.target) for t in body.texts]
@@ -132,3 +145,11 @@ async def health():
 @app.get("/stats")
 async def stats():
     return await cache.stats()
+
+
+@app.post("/clear-cache")
+async def clear_cache(x_request_id: Optional[str] = Header(default=None, alias="X-Request-Id")):
+    """Bonus/optional endpoint: wipe both cache tiers and reset stats."""
+    result = await cache.clear()
+    log.info("cache_cleared", extra={**result, "requestId": x_request_id})
+    return {"status": "ok", **result}

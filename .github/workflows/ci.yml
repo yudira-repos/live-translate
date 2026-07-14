@@ -1,0 +1,114 @@
+# FDE Assignment 1 — CI (bonus/stretch goal).
+#
+# Spins up both services locally via docker-compose and runs the SLA gate
+# (benchmark/bench.py) on every push/PR to main. On a green run on `main`,
+# a second job deploys both services to Fly.io.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   ANTHROPIC_API_KEY   — required for the bench job to make real LLM calls.
+#   FLY_API_TOKEN        — required for the deploy job (`fly tokens create deploy`).
+# If either secret is missing, the job that needs it skips with a warning
+# instead of failing noisily — this workflow is optional/bonus, not a grading gate.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for ANTHROPIC_API_KEY secret
+        id: check_key
+        run: |
+          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "::warning::ANTHROPIC_API_KEY secret not set — skipping the SLA gate. Add it under Settings > Secrets and variables > Actions to enable this check."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Vendor widget into gateway build context
+        if: steps.check_key.outputs.skip != 'true'
+        run: ./backend/gateway-node/predeploy.sh
+
+      - name: Write .env files
+        if: steps.check_key.outputs.skip != 'true'
+        run: |
+          cat > backend/ai-service-python/.env <<EOF
+          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+          MODEL=claude-sonnet-5
+          TRANSLATION_DB_PATH=translations.db
+          EOF
+          cat > backend/gateway-node/.env <<EOF
+          PORT=8787
+          AI_SERVICE_URL=http://localhost:8000
+          EOF
+
+      - name: Build and start both services
+        if: steps.check_key.outputs.skip != 'true'
+        run: docker compose up --build -d
+
+      - name: Wait for the gateway to report healthy
+        if: steps.check_key.outputs.skip != 'true'
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8787/health; then exit 0; fi
+            sleep 2
+          done
+          echo "Gateway never became healthy" >&2
+          exit 1
+
+      - name: Run the SLA gate
+        if: steps.check_key.outputs.skip != 'true'
+        run: python3 benchmark/bench.py
+
+      - name: Show service logs on failure
+        if: failure() && steps.check_key.outputs.skip != 'true'
+        run: docker compose logs
+
+      - name: Tear down
+        if: always() && steps.check_key.outputs.skip != 'true'
+        run: docker compose down -v
+
+  deploy:
+    needs: bench
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for FLY_API_TOKEN secret
+        id: check_token
+        run: |
+          if [ -z "${{ secrets.FLY_API_TOKEN }}" ]; then
+            echo "::warning::FLY_API_TOKEN secret not set — skipping Fly.io deploy. Add it under Settings > Secrets and variables > Actions to enable this job."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.check_token.outputs.skip != 'true'
+
+      - name: Deploy AI service
+        if: steps.check_token.outputs.skip != 'true'
+        working-directory: backend/ai-service-python
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Vendor widget, then deploy gateway
+        if: steps.check_token.outputs.skip != 'true'
+        working-directory: backend/gateway-node
+        run: |
+          ./predeploy.sh
+          flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

@@ -58,6 +58,11 @@ SYSTEM_PROMPT_TEMPLATE = (
     "language, return it unchanged.\n"
 )
 
+# Targets we actually have a register-accurate prompt for. Anything else
+# gets a 501 from the AI service rather than a best-guess translation with
+# an unverified register — see `app.py`.
+SUPPORTED_TARGETS = frozenset(_TARGET_NAMES.keys())
+
 _client: Optional[AsyncAnthropic] = None
 
 
